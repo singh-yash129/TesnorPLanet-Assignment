@@ -51,6 +51,15 @@ def test_health_check():
     assert response.status_code == 200
     assert "status" in response.json()
 
+def test_model_info():
+    response = client.get("/model/info")
+    # Depends if model is loaded globally during test, usually yes over TestClient
+    assert response.status_code in [200, 503]
+    if response.status_code == 200:
+        data = response.json()
+        assert "version" in data
+        assert "features" in data
+
 def test_prediction_edge_case_zero_flow():
     # Edge Case: Engine Off / Zero Flow (division by zero protection)
     payload = {

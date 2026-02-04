@@ -5,3 +5,6 @@ fastapi
 uvicorn
 requests
 xgboost
+joblib
+pytest
+httpx

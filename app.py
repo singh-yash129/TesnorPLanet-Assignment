@@ -7,6 +7,11 @@ import pandas as pd
 import numpy as np
 import os
 from datetime import datetime
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("dpf_api")
 
 # --- Pydantic Schemas for Input Validation ---
 class TelemetryInput(BaseModel):
@@ -120,6 +125,17 @@ def health_check():
         "model_version": model_artifacts.get('meta', 'N/A')
     }
 
+@app.get("/model/info")
+def model_info():
+    if 'model' not in model_artifacts:
+        raise HTTPException(status_code=503, detail="Model not loaded")
+    
+    return {
+        "version": model_artifacts.get('meta', 'unknown'),
+        "features": model_artifacts.get('features', []),
+        "description": "XGBoost Regressor for DPF Soot Load Prediction"
+    }
+
 @app.post("/predict/soot-load", response_model=PredictionOutput)
 def predict_single(data: TelemetryInput):
     if 'model' not in model_artifacts:
@@ -143,6 +159,7 @@ def predict_single(data: TelemetryInput):
             "confidence_interval": [round(prediction * 0.9, 2), round(prediction * 1.1, 2)] # Mock CI
         }
     except Exception as e:
+        logger.error(f"Prediction error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/predict/batch")
