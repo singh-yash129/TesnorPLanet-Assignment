@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException, status
+from contextlib import asynccontextmanager
 from pydantic import BaseModel
 from typing import List, Optional
 import joblib
@@ -29,19 +30,12 @@ class PredictionOutput(BaseModel):
     recommendation: str
     confidence_interval: Optional[List[float]] = None
 
-# --- Application Setup ---
-app = FastAPI(
-    title="DPF Soot Load Predictor",
-    description="Predictive Maintenance API for Tensor Planet Internship",
-    version="1.0.0"
-)
-
 # Global model store
 model_artifacts = {}
 
-@app.on_event("startup")
-def load_model():
-    """Load model artifacts on startup"""
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Load model artifacts on startup and clean up on shutdown"""
     try:
         # In prod, this path would be an S3 URL or mounted volume
         path = 'models/dpf_model_v1.pkl' 
@@ -55,6 +49,19 @@ def load_model():
             print("WARNING: Model file not found. API will return errors for predictions.")
     except Exception as e:
         print(f"Error loading model: {e}")
+    
+    yield
+    
+    # Clean up resources
+    model_artifacts.clear()
+
+# --- Application Setup ---
+app = FastAPI(
+    title="DPF Soot Load Predictor",
+    description="Predictive Maintenance API for Tensor Planet Internship",
+    version="1.0.0",
+    lifespan=lifespan
+)
 
 # --- Helper Logic ---
 def feature_extraction(input_data: TelemetryInput):
